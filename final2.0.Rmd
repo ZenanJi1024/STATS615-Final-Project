@@ -1,0 +1,206 @@
+---
+title: "Final Project"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(caret)
+library(RANN)
+library(car)
+da = read.csv("https://raw.githubusercontent.com/rubyhwj/stor565fp/main/CollegeAdmission.csv")
+rank1 = read.csv("https://raw.githubusercontent.com/rubyhwj/stor565fp/main/colleges.csv")
+head(rank1)
+rank1 = rank1[,c(1,2)]
+names(rank1)[1]<-"rank"
+na_count<-as.numeric(colSums(is.na(da))/length(da[,1])>0.3)
+da = da[,-which(na_count == 1)]
+col_remove = c("State.abbreviation","FIPS.state.code","Geographic.region","Sector.of.institution","Level.of.institution")
+da = da[,!(colnames(da) %in% col_remove)]
+tofactorize = c("Control.of.institution","Historically.Black.College.or.University","Tribal.college","Degree.of.urbanization..Urban.centric.locale.","Carnegie.Classification.2010..Basic")
+da[tofactorize] = lapply(da[tofactorize],factor)
+da[tofactorize] = lapply(da[tofactorize],as.numeric)
+
+b = preProcess(da,method = c('knnImpute'))
+df  = predict(b,newdata = da)
+names = data.frame(col = names(b$mean),mean = b$mean,sd = b$std)
+for(i in names$col){
+  df[i] = df[i]*b$std[i]+b$mean[i]
+}
+a = merge(df,rank1,by.x = "Name",by.y = "College.Name")
+library(readxl)
+rank2 = read_excel('D:/rice/615/project/rank2.xlsx')
+rank2 = rank2[,c(1,4)]
+names(rank2)[1]<-'Name'
+names(rank2)[2]<-'rank'
+b = merge(df,rank2,by.x = "Name",by.y = "Name")
+b = na.omit(b)
+#replace the T2 rank with its mean 
+b$rank[which(b$rank=="T2 (168-222)")]<-195
+b$rank = as.numeric(b$rank)
+df_college = b[,-1]
+df_university = a[,-1]
+```
+first lets run a simple linear regression to see
+```{r}
+n <- length(df_university[,1])
+set.seed(1234)
+index.train<-sample(n,0.8*n)
+train_u<-df_university[index.train,]
+test_u<-df_university[-index.train,]
+lm1<-lm(rank~.,data = train_u)
+summary(lm1)
+#as we can see there are variables with NA coef, delete them 
+na_index<-which(is.na(as.data.frame(lm1$coefficients))==TRUE)-1
+
+lm_train<-train_u[,-na_index]
+lm_test<-test_u[,-na_index]
+lm2<-lm(rank~.,data = lm_train)
+#here we handle multicolinearality but find that if use traditional threshold 10, we are left with a model that has really poor performance, so we higher the threshold and mannually delete columns that are correlated 
+vif_index<-which(vif(lm2)>50)
+vif_train<-lm_train[,-vif_index]
+vif_test<-lm_test[,-vif_index]
+lm3<-lm(rank~.,data = vif_train)
+summary(lm3)
+s<-step(lm3)
+summary(s)
+plot(s)
+vif(s)
+```
+
+```{r}
+Full = lm(rank~.,data = vif_train)
+none = lm(rank~1,data = vif_train)
+MSE = summary(Full)$sigma^2
+#forward selection
+fwd = step(none,scope=list(upper=Full), scale=MSE, direction="forward",trace = FALSE)
+summary(fwd)
+#backward
+bwd = step(Full,scale=MSE,trace = FALSE)
+summary(bwd)
+
+modstep = s$call
+modfwd = fwd$call
+modbwd = bwd$call
+
+#5-fold validation for each method
+set.seed(653)
+train_ctr = trainControl(method="cv",
+                         number = 5)
+modstep.cv = train(modstep$formula, data = vif_train,
+               method = "lm",
+               trControl = train_ctr)
+
+modfwd.cv = train(modfwd$formula, data = vif_train,
+               method = "lm",
+               trControl = train_ctr)
+
+modbwd.cv = train(modbwd$formula, data = vif_train,
+               method = "lm",
+               trControl = train_ctr)
+
+modstep.cv
+modfwd.cv
+modbwd.cv
+```
+
+```{r}
+library(glmnet)
+library(pls)
+#Now lets try regularization methods. 
+
+
+#Lasso
+x <- model.matrix(rank ~ ., vif_train)[, -83]
+y <- vif_train$rank
+grid <- 10^seq(10, -2, length = 100)
+lasso.mod <- glmnet(x, y, alpha = 1,lambda = grid)
+plot(lasso.mod)
+set.seed (1234)
+cv.out <- cv.glmnet(x, y, alpha = 1)
+plot(cv.out)
+bestlam <- cv.out$lambda.min
+out <- glmnet(x, y, alpha = 1, lambda = grid)
+lasso.coef <- predict(out , type = "coefficients",s = bestlam)
+index = which(lasso.coef != 0)
+index.keep = c(1,3,4,5,7,11,14,15,16,17,22,23,25)
+vif_train[,index.keep]
+R_Squared =  1 - cv.out$cvm/var(y)
+R_Squared
+```
+
+```{r}
+#Graphing
+# Fit MLR model
+lm_model <- lm(rank ~ ., data = vif_train)
+
+# Residuals vs. Fitted Plot
+plot(lm_model$fitted.values, resid(lm_model),
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     main = "Residuals vs. Fitted Values (MLR)")
+abline(h = 0, col = "red", lwd = 2)
+
+```
+
+```{r}
+# Scale-Location Plot to check for homoscedasticity
+plot(lm_model$fitted.values, sqrt(abs(resid(lm_model))),
+     xlab = "Fitted Values",
+     ylab = "Square Root of Absolute Residuals",
+     main = "Residual Spread Plot (Homoscedasticity)")
+abline(h = 0, col = "blue", lwd = 2)
+
+```
+```{r}
+# Q-Q Plot to check normality of residuals
+qqnorm(resid(lm_model), main = "Q-Q Plot of Residuals (MLR)")
+qqline(resid(lm_model), col = "red", lwd = 2)
+
+```
+```{r,eval = FALSE}
+install.packages("glmnet")
+library(glmnet)
+
+```
+
+```{r}
+# Prepare data for Lasso
+x <- model.matrix(rank ~ ., data = vif_train)[, -1]
+y <- vif_train$rank
+
+# Perform Lasso with cross-validation
+set.seed(1234)
+cv_lasso <- cv.glmnet(x, y, alpha = 1)
+
+# Plot Cross-Validation Error
+plot(cv_lasso, main = "Cross-Validation for Optimal Lambda")
+abline(v = log(cv_lasso$lambda.min), col = "red", lwd = 2)
+
+```
+```{r}
+# Fit Lasso Model
+lasso_model <- glmnet(x, y, alpha = 1)
+
+# Plot Lasso Coefficient Paths
+plot(lasso_model, xvar = "lambda", label = TRUE,
+     main = "Lasso Coefficient Paths")
+abline(v = log(cv_lasso$lambda.min), col = "red", lwd = 2)
+
+```
+```{r}
+# Predict using the best lambda
+best_lambda <- cv_lasso$lambda.min
+predicted <- predict(lasso_model, s = best_lambda, newx = x)
+residuals <- y - predicted
+
+# Residuals vs. Fitted Plot for Lasso
+plot(predicted, residuals,
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     main = "Residuals vs. Fitted Values (Lasso)")
+abline(h = 0, col = "red", lwd = 2)
+
+```
+
