@@ -37,7 +37,7 @@ Follow these steps to run the project:
 Clone this repository to your local machine:
 
 bash
-复制代码
+
 git clone https://github.com/yourusername/yourproject.git
 cd yourproject
 Open the final2.0.Rmd file in RStudio or any compatible editor.
@@ -49,8 +49,9 @@ Render the R Markdown file to generate the report:
 In RStudio, click the Knit button.
 Or run the following command in R:
 r
-复制代码
 rmarkdown::render("final2.0.Rmd")
+
+
 The output report (HTML, PDF, or Word) will be saved in the project directory.
 
 Features
@@ -61,9 +62,7 @@ Multiple Linear Regression (MLR):
 Build and evaluate the MLR model.
 Check model assumptions using diagnostic plots.
 Lasso Regression:
-Perform cross-validation to select the optimal regularization parameter (
-𝜆
-λ).
+Perform cross-validation to select the optimal regularization parameter (𝜆).
 Visualize coefficient paths for variable selection.
 Visualizations:
 Residual plots, Lasso coefficient paths, and comparison of model performance.
