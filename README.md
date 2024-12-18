@@ -32,13 +32,15 @@ The required libraries can be installed using the following command in R:
 
 ```r
 install.packages(c("rmarkdown", "ggplot2", "glmnet", "caret", "dplyr"))
+```
 Follow these steps to run the project:
 
 Clone this repository to your local machine:
 
 bash
-
-git clone https://github.com/yourusername/yourproject.git
+```
+git clone https://github.com/ZenanJi/STATS615-Final-Project
+```
 cd yourproject
 Open the final2.0.Rmd file in RStudio or any compatible editor.
 
@@ -48,9 +50,9 @@ Render the R Markdown file to generate the report:
 
 In RStudio, click the Knit button.
 Or run the following command in R:
-r
+```r
 rmarkdown::render("final2.0.Rmd")
-
+```
 
 The output report (HTML, PDF, or Word) will be saved in the project directory.
 
@@ -69,7 +71,7 @@ Residual plots, Lasso coefficient paths, and comparison of model performance.
 Example Code
 Here’s an example of the analysis process:
 
-
+```
 # Load necessary libraries
 library(ggplot2)
 library(glmnet)
@@ -84,6 +86,7 @@ plot(cv_lasso)
 
 # Optimal lambda
 best_lambda <- cv_lasso$lambda.min
+```
 Outputs
 The analysis produces the following:
 
@@ -97,14 +100,10 @@ Adjusted
  
 Residual Standard Error
 Cross-validated error for Lasso Regression.
+
 Contributing
 Contributions are welcome! If you find any issues or have suggestions, please open an issue or submit a pull request.
 
-License
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-Contact
-For any questions or feedback, feel free to reach out:
 
 Author: Zenan Ji
 Email: zenanji1024@gmail.com
