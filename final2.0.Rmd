@@ -29,8 +29,13 @@ for(i in names$col){
   df[i] = df[i]*b$std[i]+b$mean[i]
 }
 a = merge(df,rank1,by.x = "Name",by.y = "College.Name")
+
 library(readxl)
-rank2 = read_excel('D:/rice/615/project/rank2.xlsx')
+url <- "https://raw.githubusercontent.com/ZenanJi1024/STATS615-Final-Project/main/rank2.xlsx"
+temp_file <- tempfile(fileext = ".xlsx") 
+download.file(url, destfile = temp_file, mode = "wb")
+rank2 <- read_excel(temp_file) 
+
 rank2 = rank2[,c(1,4)]
 names(rank2)[1]<-'Name'
 names(rank2)[2]<-'rank'
